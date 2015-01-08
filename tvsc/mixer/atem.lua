@@ -21,9 +21,10 @@ function AtemMixer:init(ip)
 	self.__sock:setmode("bn", "bn")
 	self.__channels = {}
 	self.__connected = false
-	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip, ndx))
-	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip, ndx))
-	self.fade_to_black_enabled = push.property(0, ("Atem %s - FTB Enabled"):format(self.__ip, ndx))
+	self.online = push.property(0, ("Atem %s - Online"):format(self.__ip))
+	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip))
+	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip))
+	self.fade_to_black_enabled = push.property(0, ("Atem %s - FTB Enabled"):format(self.__ip))
 end
 
 function AtemMixer:channel(ndx)
@@ -123,6 +124,7 @@ function AtemMixer:recv()
 	end
 	if bit32.band(flags, AtemMixer.CMD_HELLO) ~= 0 then
 		self.__connected = true
+		self.online(true)
 		--print(("AtemMixer: connected %s"):format(self.__ip))
 		return true
 	end
@@ -162,6 +164,7 @@ function AtemMixer:main()
 		end
 		self.preview(0)
 		self.program(0)
+		self.online(false)
 
 		cqueues.sleep(5.0)
 	end
