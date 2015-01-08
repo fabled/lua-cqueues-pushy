@@ -33,8 +33,8 @@ function PanasonicAW:init(ip)
 
 	self.power:push_to(function(val, oval) self:aw_ptz(true, "O", "%d", val and 1 or 0) end)
 	self.tally:push_to(function(val, oval) print("Tally", val, oval) self:aw_ptz(true, "DA", "%d", val and 1 or 0) end)
-	self.pan:push_to(function(val) self.__pan = scale(val, 30) self:aw_ptz(false, "PTS", "%02d%02d", self.__pan, self.__tilt) end)
-	self.tilt:push_to(function(val) self.__tilt = scale(val, 30) self:aw_ptz(false, "PTS", "%02d%02d", self.__pan, self.__tilt) end)
+	self.pan:push_to(function(val) self.__pan = scale(val, 49) self:aw_ptz(false, "PTS", "%02d%02d", self.__pan, self.__tilt) end)
+	self.tilt:push_to(function(val) self.__tilt = scale(val, 49) self:aw_ptz(false, "PTS", "%02d%02d", self.__pan, self.__tilt) end)
 	self.zoom:push_to(function(val) self:aw_ptz(false, "Z", "%02d",  limit(50+math.floor(40*val+0.5), 1, 255)) end)
 end
 
