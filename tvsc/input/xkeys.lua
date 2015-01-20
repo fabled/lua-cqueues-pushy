@@ -7,8 +7,8 @@ local XKeys = {}
 XKeys.__index = XKeys
 
 local devices = {
-	[0x0429] = { name="XK-12 Joy", key_offs=3, key_cnt=4,  joy_offs=7,  ts_offs=13 },
-	[0x045d] = { name="XK-68 Joy", key_offs=3, key_cnt=10, joy_offs=15, ts_offs=19 },
+	[0x0429] = { name="XK-12 Joy", key_offs=3, key_cnt=4,  joy_offs=7,  ts_offs=13, redled_offs=32 },
+	[0x045d] = { name="XK-68 Joy", key_offs=3, key_cnt=10, joy_offs=15, ts_offs=19, redled_offs=80 },
 }
 
 function XKeys:init(hidrawbase)
@@ -20,20 +20,19 @@ function XKeys:init(hidrawbase)
 		y = push.property(0, "XKeys Y-axis"),
 		z = push.property(0, "XKeys Z-axis"),
 	}
-end
-
-function XKeys:key(ndx)
-	local k = self.__keys[ndx]
-	if k then return k end
-	k = {
-		blue_led = push.property(false, ("XKeys Button #%d Blue Led"):format(ndx)),
-		red_led = push.property(false, ("XKeys Button #%d Red Led"):format(ndx)),
-		state = push.property(false, ("XKeys Button #%d State"):format(ndx)),
-	}
-	k.blue_led:push_to(function(val) self:send(181, ndx, val and 1 or 0) end)
-	k.red_led:push_to(function(val) self:send(181, ndx+32, val and 1 or 0) end)
-	self.__keys[ndx] = k
-	return k
+	self.key = function(ndx)
+		local k = self.__keys[ndx]
+		if k then return k end
+		k = {
+			blue_led = push.property(false, ("XKeys Button #%d Blue Led"):format(ndx)),
+			red_led = push.property(false, ("XKeys Button #%d Red Led"):format(ndx)),
+			state = push.property(false, ("XKeys Button #%d State"):format(ndx)),
+		}
+		k.blue_led:push_to(function(val) if self.__devdata then self:send(181, ndx, val and 1 or 0) end end)
+		k.red_led:push_to(function(val) if self.__devdata then self:send(181, ndx+self.__devdata.redled_offs, val and 1 or 0) end end)
+		self.__keys[ndx] = k
+		return k
+	end
 end
 
 function XKeys:send(...)
@@ -44,7 +43,7 @@ function XKeys:send(...)
 end
 
 function XKeys:read_events()
-	local devdata, res, old_ts, old_z
+	local res, old_ts, old_z
 
 	-- Detect device
 	self:send(214)
@@ -61,8 +60,8 @@ function XKeys:read_events()
 
 			if res:byte(2, 2) == 214 then
 				local pid = struct.unpack("<I2", res, 12)
-				devdata = devices[pid] or {}
-				--print(("Detect X-Keys PID %04x, model %s"):format(pid, devdata.name or "unknown"))
+				self.__devdata = devices[pid]
+				print(("Detect X-Keys PID %04x, model %s"):format(pid, self.__devdata.name or "unknown"))
 
 				-- Turn off all back lights
 				self:send(182, 0, 0)
@@ -76,7 +75,8 @@ function XKeys:read_events()
 
 				-- Request status report
 				self:send(177)
-			elseif devdata then
+			elseif self.__devdata then
+				local devdata = self.__devdata
 				for i = 0, devdata.key_cnt do
 					local byte = struct.unpack("B", res, devdata.key_offs+i)
 					for j = 0, 7 do

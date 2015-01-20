@@ -25,18 +25,17 @@ function AtemMixer:init(ip)
 	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip))
 	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip))
 	self.fade_to_black_enabled = push.property(0, ("Atem %s - FTB Enabled"):format(self.__ip))
-end
-
-function AtemMixer:channel(ndx)
-	print(self, self.__channels, ndx)
-	local k = self.__channels[ndx]
-	if k then return k end
-	k = {
-		preview_tally = push.property(false, ("Atem %s - Channel #%d - Preview Tally"):format(self.__ip, ndx)),
-		program_tally = push.property(false, ("Atem %s - Channel #%d - Program Tally"):format(self.__ip, ndx)),
-	}
-	self.__channels[ndx] = k
-	return k
+	self.channel = function(ndx)
+		print(self, self.__channels, ndx)
+		local k = self.__channels[ndx]
+		if k then return k end
+		k = {
+			preview_tally = push.property(false, ("Atem %s - Channel #%d - Preview Tally"):format(self.__ip, ndx)),
+			program_tally = push.property(false, ("Atem %s - Channel #%d - Program Tally"):format(self.__ip, ndx)),
+		}
+		self.__channels[ndx] = k
+		return k
+	end
 end
 
 
@@ -125,7 +124,7 @@ function AtemMixer:recv()
 	if bit32.band(flags, AtemMixer.CMD_HELLO) ~= 0 then
 		self.__connected = true
 		self.online(true)
-		--print(("AtemMixer: connected %s"):format(self.__ip))
+		print(("AtemMixer: connected %s"):format(self.__ip))
 		return true
 	end
 
