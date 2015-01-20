@@ -43,18 +43,22 @@ function XKeys:send(...)
 end
 
 function XKeys:read_events()
-	local res, old_ts, old_z
+	local res, old_ts, old_z, timeout
 
 	-- Detect device
 	self:send(214)
 
 	while true do
-		local ret = cq.poll(self.__pfd, self.__pfd2)
+		local ret = cq.poll(self.__pfd, self.__pfd2, timeout)
 		if ret == nil then break end
 
-		if ret == self.__pfd2 then
+		if type(ret) == "number" then
+			timeout = nil
+			self:send(177)
+		elseif ret == self.__pfd2 then
 			self.__pfd2:read(32)
 		elseif ret == self.__pfd then
+			timeout = 60.0
 			res = self.__pfd:read(32)
 			if res == nil then break end
 
@@ -66,6 +70,8 @@ function XKeys:read_events()
 				-- Turn off all back lights
 				self:send(182, 0, 0)
 				self:send(182, 1, 0)
+				-- Full backlighting intensity
+				self:send(187, 255, 255)
 
 				-- And synchronize led states
 				for _, key in pairs(self.__keys) do
@@ -93,6 +99,7 @@ function XKeys:read_events()
 					local x, y, z, diff_z = struct.unpack(">bbB", res, devdata.joy_offs)
 
 					diff_z = old_z and struct.unpack("b", struct.pack("b", 0x100 + z - old_z)) * 200 / diff_ts
+					if old_z ~= z then timeout = 0.1 end
 					old_z = z
 
 					--print(diff_ts, x, y, z, old_z, diff_z)
