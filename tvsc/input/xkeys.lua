@@ -6,6 +6,11 @@ local pfd = require 'tvsc.posixfd'
 local XKeys = {}
 XKeys.__index = XKeys
 
+local devices = {
+	[0x0429] = { name="XK-12 Joy", key_offs=3, key_cnt=4,  joy_offs=7,  ts_offs=13 },
+	[0x045d] = { name="XK-68 Joy", key_offs=3, key_cnt=10, joy_offs=15, ts_offs=19 },
+}
+
 function XKeys:init(hidrawbase)
 	self.__devname = ("/dev/hidraw%d"):format(hidrawbase)
 	self.__devname2 = ("/dev/hidraw%d"):format(hidrawbase+2)
@@ -39,60 +44,64 @@ function XKeys:send(...)
 end
 
 function XKeys:read_events()
-	local old_res, res, timeout
+	local devdata, res, old_ts, old_z
 
-	-- Turn off all back lights
-	self:send(182, 0, 0)
-	self:send(182, 1, 0)
-
-	-- And synchronize led states
-	for _, key in pairs(self.__keys) do
-		print(key.blue_led, key.blue_led())
-		key.blue_led:forceupdate()
-		key.red_led:forceupdate()
-	end
-
-	-- Request status report
-	self:send(177)
+	-- Detect device
+	self:send(214)
 
 	while true do
-		local ret = cq.poll(self.__pfd, self.__pfd2, timeout)
+		local ret = cq.poll(self.__pfd, self.__pfd2)
 		if ret == nil then break end
 
-		if type(ret) == "number" then
-			timeout = nil
-			self:send(177)
-		elseif ret == self.__pfd2 then
+		if ret == self.__pfd2 then
 			self.__pfd2:read(32)
 		elseif ret == self.__pfd then
-			timeout = 60.0
 			res = self.__pfd:read(32)
 			if res == nil then break end
 
-			-- buttons
-			for i = 0, 3 do
-				local byte = res:byte(3+i, 3+i)
-				for j = 0, 7 do
-					local p = self.__keys[i*8+j]
-					if p then p.state(bit32.extract(byte, j) == 1) end
+			if res:byte(2, 2) == 214 then
+				local pid = struct.unpack("<I2", res, 12)
+				devdata = devices[pid] or {}
+				--print(("Detect X-Keys PID %04x, model %s"):format(pid, devdata.name or "unknown"))
+
+				-- Turn off all back lights
+				self:send(182, 0, 0)
+				self:send(182, 1, 0)
+
+				-- And synchronize led states
+				for _, key in pairs(self.__keys) do
+					key.blue_led:forceupdate()
+					key.red_led:forceupdate()
 				end
+
+				-- Request status report
+				self:send(177)
+			elseif devdata then
+				for i = 0, devdata.key_cnt do
+					local byte = struct.unpack("B", res, devdata.key_offs+i)
+					for j = 0, 7 do
+						local p = self.__keys[i*8+j]
+						if p then p.state(bit32.extract(byte, j) == 1) end
+					end
+				end
+
+				local new_ts = struct.unpack(">I4", res, devdata.ts_offs)
+				diff_ts = old_ts and bit32.band(new_ts - old_ts + 0x100000000, 0xffffffff)
+				old_ts = new_ts
+
+				if devdata.joy_offs and diff_ts then
+					local x, y, z, diff_z = struct.unpack(">bbB", res, devdata.joy_offs)
+
+					diff_z = old_z and struct.unpack("b", struct.pack("b", 0x100 + z - old_z)) * 200 / diff_ts
+					old_z = z
+
+					--print(diff_ts, x, y, z, old_z, diff_z)
+					self.joystick.x( x / 128.0)
+					self.joystick.y(-y / 128.0)
+					if diff_z then self.joystick.z(diff_z / 64.0) end
+				end
+
 			end
-
-			-- axis values
-			if old_res then
-				local old_z, _, old_ts = struct.unpack(">BI3I4", old_res, 9)
-				local x, y, new_z, _, new_ts = struct.unpack(">bbBI3I4", res, 7)
-				diff_ts = struct.unpack("i4", struct.pack("i4", new_ts - old_ts + 0x100000000))
-				z = struct.unpack("b", struct.pack("b", 0x100 + new_z - old_z)) * 200 / diff_ts
-				if new_z ~= old_z then timeout = 0.4 end
-
-				print(diff_ts, x, y, z, new_z, old_z)
-				self.joystick.x( x / 128.0)
-				self.joystick.y(-y / 128.0)
-				self.joystick.z( z / 64.0)
-			end
-
-			old_res = res
 		end
 	end
 
