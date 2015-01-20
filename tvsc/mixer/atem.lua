@@ -54,14 +54,16 @@ function AtemMixer:sendCmd(cmd, data)
 	self:send(AtemMixer.CMD_ACKREQ, pkt)
 end
 
---[[
-function AtemMixer:autoDownstreamKey(id)
+function AtemMixer:do_auto_dsk(id)
 	self:sendCmd("DDsA", struct.pack(">i1i1i2", id, 0, 0))
 end
---]]
 
 function AtemMixer:do_cut()
 	self:sendCmd("DCut", struct.pack(">i4", 0))
+end
+
+function AtemMixer:do_auto()
+	self:sendCmd("DAut", struct.pack(">i4", 0))
 end
 
 function AtemMixer:do_fade_to_black()
