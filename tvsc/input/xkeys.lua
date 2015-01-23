@@ -11,6 +11,11 @@ local devices = {
 	[0x045d] = { name="XK-68 Joy", key_offs=3, key_cnt=10, joy_offs=15, ts_offs=19, redled_offs=80 },
 }
 
+local function map_led_value(val)
+	if val == 2 then return 2 end
+	return val and 1 or 0
+end
+
 function XKeys:init(hidrawbase)
 	self.__devname = ("/dev/hidraw%d"):format(hidrawbase)
 	self.__devname2 = ("/dev/hidraw%d"):format(hidrawbase+2)
@@ -28,8 +33,8 @@ function XKeys:init(hidrawbase)
 			red_led = push.property(false, ("XKeys Button #%d Red Led"):format(ndx)),
 			state = push.property(false, ("XKeys Button #%d State"):format(ndx)),
 		}
-		k.blue_led:push_to(function(val) if self.__devdata then self:send(181, ndx, val and 1 or 0) end end)
-		k.red_led:push_to(function(val) if self.__devdata then self:send(181, ndx+self.__devdata.redled_offs, val and 1 or 0) end end)
+		k.blue_led:push_to(function(val) if self.__devdata then self:send(181, ndx, map_led_value(val)) end end)
+		k.red_led:push_to(function(val) if self.__devdata then self:send(181, ndx+self.__devdata.redled_offs, map_led_value(val)) end end)
 		self.__keys[ndx] = k
 		return k
 	end
@@ -67,11 +72,10 @@ function XKeys:read_events()
 				self.__devdata = devices[pid]
 				print(("Detect X-Keys PID %04x, model %s"):format(pid, self.__devdata.name or "unknown"))
 
-				-- Turn off all back lights
-				self:send(182, 0, 0)
-				self:send(182, 1, 0)
-				-- Full backlighting intensity
-				self:send(187, 255, 255)
+				self:send(182, 0, 0)		-- Turn off LEDs bank 0
+				self:send(182, 1, 0)		-- Turn off LEDs bank 1
+				self:send(187, 255, 255)	-- Full backlighting intensity
+				self:send(180, 64)		-- LED blink speed (~ 1 sec)
 
 				-- And synchronize led states
 				for _, key in pairs(self.__keys) do
@@ -136,7 +140,9 @@ function XKeys:main(loop)
 	end
 end
 
-local M = {}
+local M = {
+	Led = { Off = false, On = true, Blink = 2 },
+}
 function M.new(loop, hidrawbase)
 	local o = setmetatable({}, XKeys)
 	o:init(hidrawbase)
