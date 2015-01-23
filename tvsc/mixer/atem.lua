@@ -20,13 +20,20 @@ function AtemMixer:init(ip)
 	self.__sock = socket.connect{host=ip, port=9910, type=socket.SOCK_DGRAM}
 	self.__sock:setmode("bn", "bn")
 	self.__channels = {}
+	self.__dsk = {}
 	self.__connected = false
 	self.online = push.property(0, ("Atem %s - Online"):format(self.__ip))
 	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip))
 	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip))
 	self.fade_to_black_enabled = push.property(0, ("Atem %s - FTB Enabled"):format(self.__ip))
+	self.dsk = function(ndx)
+		local k = self.__dsk[ndx]
+		if k then return k end
+		k = push.property(false, ("Atem %s - DSK #%d"):format(self.__ip, ndx))
+		self.__dsk[ndx] = k
+		return k
+	end
 	self.channel = function(ndx)
-		print(self, self.__channels, ndx)
 		local k = self.__channels[ndx]
 		if k then return k end
 		k = {
@@ -55,7 +62,7 @@ function AtemMixer:sendCmd(cmd, data)
 end
 
 function AtemMixer:do_auto_dsk(id)
-	self:sendCmd("DDsA", struct.pack(">i1i1i2", id, 0, 0))
+	self:sendCmd("DDsA", struct.pack(">i1i1i2", id-1, 0, 0))
 end
 
 function AtemMixer:do_cut()
@@ -71,7 +78,6 @@ function AtemMixer:do_fade_to_black()
 end
 
 function AtemMixer:set_preview(ndx)
-	print("set preview", ndx)
 	self:sendCmd("CPvI", struct.pack(">i2i2", 0, ndx))
 end
 
@@ -92,6 +98,12 @@ end
 function AtemMixer:onFtbS(data)
 	local _, enabled, fading, framecount = struct.unpack("i1i1i1i1", data)
 	self.fade_to_black_enabled(enabled == 1 or fading == 1)
+end
+
+function AtemMixer:onDskS(data)
+	local ndx, enabled, _, _ = struct.unpack("i1i1i1i1", data)
+	local k = self.__dsk[ndx+1]
+	if k then k(enabled == 1) end
 end
 
 function AtemMixer:onTlIn(data)
@@ -163,6 +175,7 @@ function AtemMixer:main()
 			ch.program_tally(false)
 			ch.preview_tally(false)
 		end
+		for _, dsk in pairs(self.__dsk) do dsk(false) end
 		self.preview(0)
 		self.program(0)
 		self.online(false)
