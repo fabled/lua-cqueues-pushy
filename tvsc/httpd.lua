@@ -13,37 +13,43 @@ local M = {}
 local function handle_connection(params, con)
 	local _, ip, port = con:peername()
 
-	print(("%s:%d: connected"):format(ip, port))
-
 	local ok, why = pcall(function()
 		con:setmode("tl", "tf")
 
-		local get, why = con:read("*l")
-		if not get then
+		local req, why = con:read("*l")
+		if not req then
 			print(("%s:%d: no request (%s)"):format(ip, port, errno.strerror(why)))
 			return
 		end
 
-		print(("%s:%d: %s"):format(ip, port, get))
-
 		local hdr = {}
-
 		for h in con:lines("*h") do
 			local f, b = h:match("^([^:%s]+)%s*:%s*(.*)$")
 			hdr[f] = b
 		end
 
 		con:read("*l") -- discard header/body break
-
-		local path = get:match("^%w+%s+/?([^%s]+)") or "/dev/null"
+		local method, path = req:match("^(%w+)%s+/?([^%s]+)")
+		print(("%s:%d: method: %s, path: %s"):format(ip, port, method, path))
 		if not path then
 			print(("%s:%d: no path specified"):format(ip, port))
 			return
 		end
 
-		print(("%s:%d: path: %s"):format(ip, port, path))
+		local body = nil
+		if hdr["Content-Length"] then
+			body = con:read(tonumber(hdr["Content-Length"]))
+		end
+
 		if params.uri[path] then
-			local code, text, hdrs = params.uri[path]()
+			local args = {}
+			if method == "POST" and body then
+				for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
+					args[key] = val
+				end
+			end
+
+			local code, text, hdrs = params.uri[path](hdr, args)
 			con:write(("HTTP/1.1 %d %s\n"):format(code, text))
 			print(code, text, hdrs)
 			if hdrs then con:write(table.concat(hdrs, "\n"), "\n") end
