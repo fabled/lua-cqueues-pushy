@@ -3,6 +3,7 @@
 -- with coding style and minor updates by: Timo Teräs
 
 local cqueues = require 'cqueues'
+local condition = require 'cqueues.condition'
 local recorders = { }
 
 local Property = {}
@@ -65,6 +66,32 @@ function P.action.on(trigger, action)
 	end
 end
 
+function P.action.threshold(loop, threshold_time, on_short, on_long)
+	local cond = condition.new()
+	local property = P.property(false)
+
+	property:push_to(function() cond:signal() end)
+	loop:wrap(function()
+		while true do
+			if property() then
+				if cond:wait(threshold_time) then
+					-- Short
+					on_short(true)
+					on_short(false)
+				else
+					-- Timeout, long
+					on_long(true)
+					while property() do cond:wait() end
+					on_long(false)
+				end
+			else
+				cond:wait()
+			end
+		end
+	end)
+	return property
+end
+
 function P.action.timed(action)
 	local down_time = nil
 	return function(val)
@@ -76,6 +103,27 @@ function P.action.timed(action)
 			down_time = nil
 		end
 	end
+end
+
+function P.action.mux(v, name, group)
+	local p = P.property(v, name)
+	local o = nil
+
+	for i, v in pairs(group) do
+		v[1]:push_to(P.action.on(true, function() p(i) end))
+	end
+
+	p:push_to(function(v)
+		local t
+		t = group[o]
+		if t then t[2](false) end
+		t = group[v]
+		if t then t[2](true) end
+		o = v
+	end)
+	p:forceupdate()
+
+	return p
 end
 
 function P.property(v, name)
