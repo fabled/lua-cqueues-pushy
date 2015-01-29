@@ -25,6 +25,10 @@ function XKeys:init(hidrawbase)
 		y = push.property(0, "XKeys Y-axis"),
 		z = push.property(0, "XKeys Z-axis"),
 	}
+	self.green_led = push.property(true, "XKeys Green Led")
+	self.green_led:push_to(function(val) if self.__devdata then self:send(179, 6, map_led_value(val)) end end)
+	self.red_led = push.property(false, "XKeys Red Led")
+	self.red_led:push_to(function(val) if self.__devdata then self:send(179, 7, map_led_value(val)) end end)
 	self.key = function(ndx)
 		local k = self.__keys[ndx]
 		if k then return k end
@@ -78,6 +82,8 @@ function XKeys:read_events()
 				self:send(180, 64)		-- LED blink speed (~ 1 sec)
 
 				-- And synchronize led states
+				self.green_led:forceupdate()
+				self.red_led:forceupdate()
 				for _, key in pairs(self.__keys) do
 					key.blue_led:forceupdate()
 					key.red_led:forceupdate()
