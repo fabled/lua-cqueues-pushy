@@ -25,6 +25,7 @@ function AtemMixer:init(ip)
 	self.online = push.property(0, ("Atem %s - Online"):format(self.__ip))
 	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip))
 	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip))
+	self.transition_active = push.property(0, ("Atem %s - Transition Active"):format(self.__ip))
 	self.fade_to_black_enabled = push.property(0, ("Atem %s - FTB Enabled"):format(self.__ip))
 	self.dsk = function(ndx)
 		local k = self.__dsk[ndx]
@@ -93,6 +94,11 @@ end
 function AtemMixer:onPrgI(data)
 	local _, ndx = struct.unpack(">HH", data)
 	self.program(ndx)
+end
+
+function AtemMixer:onTrPs(data)
+	local _, enabled, pos = struct.unpack(">i1i1H", data)
+	self.transition_active(enabled == 1)
 end
 
 function AtemMixer:onFtbS(data)
