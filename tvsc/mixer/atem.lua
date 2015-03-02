@@ -25,8 +25,8 @@ function AtemMixer:init(ip)
 	self.online = push.property(0, ("Atem %s - Online"):format(self.__ip))
 	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip))
 	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip))
-	self.transition_active = push.property(0, ("Atem %s - Transition Active"):format(self.__ip))
-	self.fade_to_black_enabled = push.property(0, ("Atem %s - FTB Enabled"):format(self.__ip))
+	self.transition_active = push.property(false, ("Atem %s - Transition Active"):format(self.__ip))
+	self.fade_to_black_enabled = push.property(false, ("Atem %s - FTB Enabled"):format(self.__ip))
 	self.dsk = function(ndx)
 		local k = self.__dsk[ndx]
 		if k then return k end
@@ -184,6 +184,8 @@ function AtemMixer:main()
 		for _, dsk in pairs(self.__dsk) do dsk(false) end
 		self.preview(0)
 		self.program(0)
+		self.transition_active(false)
+		self.fade_to_black_enabled(false)
 		self.online(false)
 
 		cqueues.sleep(5.0)
