@@ -108,14 +108,21 @@ function XKeys:read_events()
 				if devdata.joy_offs and diff_ts then
 					local x, y, z, diff_z = struct.unpack(">bbB", res, devdata.joy_offs)
 
-					diff_z = old_z and struct.unpack("b", struct.pack("b", 0x100 + z - old_z)) * 200 / diff_ts
-					if old_z ~= z then timeout = 0.1 end
+					diff_z = old_z and struct.unpack("b", struct.pack("b", 0x100 + z - old_z)) or 0
 					old_z = z
+
+					diff_z = diff_z * 200 / diff_ts / 32.0
+					diff_z = 0.2 * diff_z + 0.8 * self.joystick.z() or 0
+					if diff_z < 0.1 and diff_z > -0.1 then
+						diff_z = 0
+					else
+						timeout = 0.08
+					end
 
 					--print(diff_ts, x, y, z, old_z, diff_z)
 					self.joystick.x( x / 128.0)
 					self.joystick.y(-y / 128.0)
-					if diff_z then self.joystick.z(diff_z / 64.0) end
+					self.joystick.z(diff_z)
 				end
 
 			end
@@ -134,7 +141,7 @@ end
 function XKeys:main(loop)
 	while true do
 		self.__pfd = pfd.open(self.__devname, "rw")
-		self.__pfd2 = pfd.open(self.__devname2, "r")
+		self.__pfd2 = pfd.open(self.__devname2, "rw")
 		if self.__pfd then
 			self:read_events()
 			self.__pfd:close()
