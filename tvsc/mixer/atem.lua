@@ -22,7 +22,7 @@ function AtemMixer:init(ip)
 	self.__channels = {}
 	self.__dsk = {}
 	self.__connected = false
-	self.online = push.property(0, ("Atem %s - Online"):format(self.__ip))
+	self.online = push.property(false, ("Atem %s - Online"):format(self.__ip))
 	self.preview = push.property(0, ("Atem %s - Preview Channel"):format(self.__ip))
 	self.program = push.property(0, ("Atem %s - Program Channel"):format(self.__ip))
 	self.transition_active = push.property(false, ("Atem %s - Transition Active"):format(self.__ip))
