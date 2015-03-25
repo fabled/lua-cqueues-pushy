@@ -26,7 +26,9 @@ function XKeys:init()
 	}
 	self.program_key = push.property(false, "XKeys Program Key")
 	self.green_led = push.property(true, "XKeys Green Led")
+	self.green_led:push_to(function(val) if self.__led_gree then self:__led_green(map_led_value(val)) end end)
 	self.red_led = push.property(false, "XKeys Red Led")
+	self.red_led:push_to(function(val) if self.__led_red then self:__led_red(map_led_value(val)) end end)
 	self.key = function(ndx)
 		local k = self.__keys[ndx]
 		if k then return k end
@@ -35,8 +37,8 @@ function XKeys:init()
 			red_led = push.property(false, ("XKeys Button #%d Red Led"):format(ndx)),
 			state = push.property(false, ("XKeys Button #%d State"):format(ndx)),
 		}
-		k.red_led:push_to(function(val) if self.__redled_update then self:__redled_update(ndx, map_led_value(val)) end end)
-		k.blue_led:push_to(function(val) if self.__blueled_update then self:__blueled_update(ndx, map_led_value(val)) end end)
+		k.red_led:push_to(function(val) if self.__keyled_red then self:__keyled_red(ndx, map_led_value(val)) end end)
+		k.blue_led:push_to(function(val) if self.__keyled_blue then self:__keyled_blue(ndx, map_led_value(val)) end end)
 		self.__keys[ndx] = k
 		return k
 	end
@@ -64,8 +66,10 @@ function XKeys:reset_state()
 	self.joystick.z(0)
 	self.program_key(false)
 	for _, key in pairs(self.__keys) do key.state(false) end
-	self.__redled_update = nil
-	self.__blueled_update = nil
+	self.__led_green = nil
+	self.__led_red = nil
+	self.__keyled_blue = nil
+	self.__keyled_red = nil
 end
 
 function XKeys:main_xk(fd, devinfo)
@@ -76,11 +80,10 @@ function XKeys:main_xk(fd, devinfo)
 	self:send(fd, 0, 187, 255, 255)		-- Full backlighting intensity
 	self:send(fd, 0, 180, 64)		-- LED blink speed (~ 1 sec)
 
-	--self.green_led:push_to(function(val) if self.__devdata then self:send(179, 6, map_led_value(val)) end end)
-	--self.red_led:push_to(function(val) if self.__devdata then self:send(179, 7, map_led_value(val)) end end)
-
-	self.__blueled_update = function(self, ndx, val) self:send(fd, 0, 181, ndx, val) end
-	self.__redled_update = function(self, ndx, val) self:send(fd, 0, 181, ndx + devinfo.redled_offs, val) end
+	self.__led_green = function(self, val) self:send(fd, 0, 179, 6, val) end
+	self.__led_red  = function(self, val) self:send(fd, 0, 179, 7, val) end
+	self.__keyled_blue = function(self, ndx, val) self:send(fd, 0, 181, ndx, val) end
+	self.__keyled_red = function(self, ndx, val) self:send(fd, 0, 181, ndx + devinfo.redled_offs, val) end
 	self:sync_leds()
 
 	while true do
@@ -136,7 +139,7 @@ function XKeys:main_xks79(fd)
 	local update_leds = true
 	local backlights = 0
 
-	self.__redled_update = function(self, ndx, val)
+	self.__keyled_red = function(self, ndx, val)
 		backlights = bit32.replace(backlights, val==0 and 0 or 1, ndx)
 		update_leds = true
 		leds_changed:signal()
