@@ -55,10 +55,14 @@ function PanasonicAW:main()
 	while true do
 		local sleep = true
 		for cmd, val in pairs(self.__cmdqueue) do
-			self.__cmdqueue[cmd] = nil
 			local uri = ("/cgi-bin/aw_ptz?cmd=%%23%s%s&res=1"):format(cmd, val)
-			local status = http.get(self.__ip, 80, uri)
+			local ok, status = http.get(self.__ip, 80, uri)
 			print("Posting", self.__ip, uri, status)
+			if ok and status == 200 and self.__cmdqueue[cmd] == val then
+				-- ACK command from queue (unless we got new already)
+				self.__cmdqueue[cmd] = nil
+			end
+
 			sleep = false
 			break
 		end

@@ -9,10 +9,16 @@ function M.get(ip, port, uri, cookies)
 			nodelay = true,
 		}
 
+		if s:connect(1.0) == nil then
+			s:close()
+			return nil
+		end
+
 		s:write(("GET %s HTTP/1.1\nHost: %s\nConnection: Close\n\n"):format(uri, ip))
 		s:flush()
 
-		local status = s:read("*l")
+		local stat = s:read("*l")
+		local http, status, msg = stat:match("([^ ]*) (%d+) (.*)")
 		--print("!", status)
 		for hdr in s:lines("*h") do
 			--print("|", hdr)
@@ -22,7 +28,7 @@ function M.get(ip, port, uri, cookies)
 			--print("+", line)
 		end
 		s:close()
-		return status
+		return tonumber(status, 10)
 	end)
 end
 
