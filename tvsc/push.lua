@@ -9,9 +9,9 @@ local recorders = { }
 local Property = {}
 Property.__index = Property
 
-function Property:push_to(pushee)
+function Property:push_to(pushee, noinit)
 	self.__tos[pushee] = pushee
-	pushee(self.__value)
+	if noinit ~= true then pushee(self.__value) end
 	return function() self.__tos[pushee] = nil end
 end
 
