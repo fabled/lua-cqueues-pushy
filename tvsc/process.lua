@@ -4,6 +4,8 @@ local push = require 'tvsc.push'
 
 local all_processes = {}
 
+-- Process object
+
 local Process = { }
 Process.__index = Process
 
@@ -33,33 +35,44 @@ function Process:kill(signo)
 	if pid then posix.kill(pid, signo or 15) end
 end
 
-local M = {}
-function M.run(loop)
-	loop:wrap(function()
-		signal.block(signal.SIGCHLD)
-		local s = signal.listen(signal.SIGCHLD)
+-- Manager object
+
+local Manager = {}
+Manager.__index = Manager
+
+function Manager:main()
+	signal.block(signal.SIGCHLD)
+	local s = signal.listen(signal.SIGCHLD)
+	while true do
+		s:wait()
 		while true do
-			s:wait()
-			while true do
-				local pid, reason, exit_status = posix.wait(-1)
-				if not pid then break end
-				local c = all_processes[pid]
-				print(pid, "Exited", reason, exit_status, c)
-				if c then
-					c.running(false)
-					c.__pid = nil
-					all_processes[pid] = nil
-				end
+			local pid, reason, exit_status = posix.wait(-1, posix.WNOHANG)
+			if not pid then break end
+			local c = all_processes[pid]
+			print(pid, "Exited", reason, exit_status, c)
+			if c then
+				c.running(false)
+				c.__pid = nil
+				all_processes[pid] = nil
 			end
 		end
-	end)
+	end
 end
 
-function M.create(cmd)
+function Manager:create(cmd)
 	return setmetatable({
 		command = cmd,
 		running = push.property(false, "Child running")
 	}, Process)
+end
+
+-- Module interface
+
+local M = {}
+function M.manager(loop)
+	local mgr = setmetatable({}, Manager)
+	loop:wrap(function() mgr:main(loop) end)
+	return mgr
 end
 
 return M
