@@ -242,7 +242,7 @@ local xkeys_devices = {
 function XKeysManager:main()
 	local ntfy = notify.opendir("/dev", notify.CREATE)
 	repeat
-		for _, fn in pairs(posix.glob("/dev/hidraw*")) do
+		for _, fn in pairs(posix.glob("/dev/hidraw*") or {}) do
 			local devname = fn:sub(6)
 			local sysfsinfo = readvals(("/sys/class/hidraw/%s/device/uevent"):format(devname))
 			local bus, vid, pid = ((sysfsinfo and sysfsinfo.HID_ID) or ""):match("(%x+):(%x+):(%x+)")
