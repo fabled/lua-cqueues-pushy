@@ -12,7 +12,7 @@ Process.__index = Process
 function Process:run()
 	if self.running() then return end
 	local pid = posix.fork()
-	print(pid, "Fork", self.command)
+	print(pid, "Fork", self.command, table.unpack(self.arguments))
 	if pid == -1 then
 		return error("Fork failed")
 	elseif pid == 0 then
@@ -21,7 +21,7 @@ function Process:run()
 		posix.dup2(nulfd, 1)
 		posix.dup2(nulfd, 2)
 		posix.close(nulfd)
-		posix.execp(self.command)
+		posix.execp(self.command, table.unpack(self.arguments))
 		os.exit(0)
 	else
 		all_processes[pid] = self
@@ -47,21 +47,23 @@ function Manager:main()
 		s:wait()
 		while true do
 			local pid, reason, exit_status = posix.wait(-1, posix.WNOHANG)
-			if not pid then break end
+			if pid == nil or pid == 0 then break end
+
 			local c = all_processes[pid]
 			print(pid, "Exited", reason, exit_status, c)
 			if c then
-				c.running(false)
 				c.__pid = nil
 				all_processes[pid] = nil
+				c.running(false)
 			end
 		end
 	end
 end
 
-function Manager:create(cmd)
+function Manager:create(cmd, ...)
 	return setmetatable({
 		command = cmd,
+		arguments = table.pack(...),
 		running = push.property(false, "Child running")
 	}, Process)
 end
