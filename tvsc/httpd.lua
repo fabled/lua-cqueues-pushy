@@ -15,6 +15,7 @@ local function handle_connection(params, con)
 
 	local ok, why = pcall(function()
 		con:setmode("tl", "tf")
+		con:onerror(function(sock, method, error, level) return error end)
 
 		local req, why = con:read("*l")
 		if not req then
@@ -76,6 +77,7 @@ end
 
 function M.new(loop, p)
 	local srv = socket.listen(p.local_addr or "127.0.0.1", tonumber(p.port or 8000))
+	srv:onerror(function(sock, method, error, level) return error end)
 	loop:wrap(function()
 		for con in srv:clients() do
 			loop:wrap(function() handle_connection(p, con) end)

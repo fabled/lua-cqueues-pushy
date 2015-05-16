@@ -18,6 +18,7 @@ AtemMixer.__index = AtemMixer
 function AtemMixer:init(ip)
 	self.__ip = ip
 	self.__sock = socket.connect{host=ip, port=9910, type=socket.SOCK_DGRAM}
+	self.__sock:onerror(function(sock, method, error, level) return error end)
 	self.__sock:setmode("bn", "bn")
 	self.__channels = {}
 	self.__dsk = {}

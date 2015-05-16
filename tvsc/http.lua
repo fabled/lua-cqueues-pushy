@@ -8,7 +8,7 @@ function M.get(ip, port, uri, cookies)
 			port = port,
 			nodelay = true,
 		}
-
+		s:onerror(function(sock, method, error, level) return error end)
 		if s:connect(1.0) == nil then
 			s:close()
 			return nil
