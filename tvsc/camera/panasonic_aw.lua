@@ -61,6 +61,9 @@ function PanasonicAW:main()
 			if ok and status == 200 and self.__cmdqueue[cmd] == val then
 				-- ACK command from queue (unless we got new already)
 				self.__cmdqueue[cmd] = nil
+			elseif not ok or status == nil then
+				-- HTTP failed, throttle resend
+				cqueues.sleep(1.0)
 			end
 
 			sleep = false
