@@ -1,17 +1,15 @@
 #!/usr/bin/lua5.2
 
-package.path = package.path..";./?.lua"
-
 local cqueues = require 'cqueues'
 local AtemMixer = require 'cqp.mixer.atem'
 local PanasonicAW = require 'cqp.camera.panasonic_aw'
-local XKeys = require 'cqp.input.xkeys'
 local push = require 'cqp.push'
 local httpd = require 'cqp.httpd'
 local http = require 'cqp.http'
 
 local loop = cqueues.new()
-local keys = XKeys.new(loop, 0)
+local xkeysmgr = require 'cqp.input.xkeys'.manager(loop)
+local keys = xkeysmgr:new(loop, 0)
 local mixer = AtemMixer.new(loop, "192.168.1.151")
 local cam = PanasonicAW.new(loop, "192.168.1.152")
 
