@@ -3,12 +3,12 @@
 package.path = package.path..";./?.lua"
 
 local cqueues = require 'cqueues'
-local AtemMixer = require 'tvsc.mixer.atem'
-local PanasonicAW = require 'tvsc.camera.panasonic_aw'
-local XKeys = require 'tvsc.input.xkeys'
-local push = require 'tvsc.push'
-local httpd = require 'tvsc.httpd'
-local http = require 'tvsc.http'
+local AtemMixer = require 'cqp.mixer.atem'
+local PanasonicAW = require 'cqp.camera.panasonic_aw'
+local XKeys = require 'cqp.input.xkeys'
+local push = require 'cqp.push'
+local httpd = require 'cqp.httpd'
+local http = require 'cqp.http'
 
 local loop = cqueues.new()
 local keys = XKeys.new(loop, 0)

@@ -3,8 +3,8 @@ local condition = require 'cqueues.condition'
 local notify = require 'cqueues.notify'
 local posix = require 'posix'
 local struct = require 'struct'
-local push = require 'tvsc.push'
-local pfd = require 'tvsc.posixfd'
+local push = require 'cqp.push'
+local pfd = require 'cqp.posixfd'
 
 local function map_led_value(val)
 	if val == 2 then return 2 end

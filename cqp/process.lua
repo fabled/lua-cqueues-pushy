@@ -1,6 +1,6 @@
 local signal = require 'cqueues.signal'
 local posix = require 'posix'
-local push = require 'tvsc.push'
+local push = require 'cqp.push'
 
 local all_processes = {}
 

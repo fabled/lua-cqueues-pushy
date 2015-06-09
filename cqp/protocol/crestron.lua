@@ -2,7 +2,7 @@ local cqueues = require 'cqueues'
 local socket = require 'cqueues.socket'
 local errno = require 'cqueues.errno'
 local struct = require 'struct'
-local push = require 'tvsc.push'
+local push = require 'cqp.push'
 
 local CIP = { }
 CIP.__index = CIP

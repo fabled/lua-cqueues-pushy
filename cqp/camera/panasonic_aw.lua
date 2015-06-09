@@ -1,7 +1,7 @@
 local cqueues = require 'cqueues'
 local condition = require 'cqueues.condition'
-local push = require 'tvsc.push'
-local http = require 'tvsc.http'
+local push = require 'cqp.push'
+local http = require 'cqp.http'
 
 local PanasonicAW = {}
 PanasonicAW.__index = PanasonicAW

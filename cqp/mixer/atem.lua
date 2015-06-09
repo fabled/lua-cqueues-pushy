@@ -2,8 +2,8 @@ local cqueues = require 'cqueues'
 local socket = require 'cqueues.socket'
 local struct = require 'struct'
 
-local push = require 'tvsc.push'
-local httpd = require 'tvsc.httpd'
+local push = require 'cqp.push'
+local httpd = require 'cqp.httpd'
 
 --- ATEM Stuff
 local AtemMixer = {
