@@ -108,15 +108,13 @@ end
 
 function CIP:main()
 	while true do
-		local status, ret
+		local ret
 
 		self.__sock = socket.connect{host=self.__ip, port=41794, type=socket.SOCK_STREAM, nodelay=true}
 		self.__sock:setmode("bn", "bn")
 		self.__sock:onerror(function(sock, method, error, level) return error end)
 		self.__sock:settimeout(5.0)
-		repeat
-			status, ret = pcall(self.recv, self)
-		until not (status and ret)
+		repeat until not self:recv()
 		self.__sock:close()
 
 		cqueues.sleep(5.0)
