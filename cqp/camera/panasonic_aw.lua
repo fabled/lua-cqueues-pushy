@@ -75,10 +75,10 @@ end
 
 local M = {}
 
-function M.new(loop, ip)
+function M.new(ip)
 	local o = setmetatable({}, PanasonicAW)
 	o:init(ip)
-	loop:wrap(function() o:main() end)
+	cqueues.running():wrap(function() o:main() end)
 	return o
 end
 

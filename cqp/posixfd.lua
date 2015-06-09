@@ -8,6 +8,7 @@ function File:pollfd() return self.__fd end
 function File:events() return self.__mode end
 function File:timeout() return nil end
 
+function File:seek(offs)  return posix.lseek(self.__fd, offs, posix.SEEK_SET) end
 function File:read(bytes) return posix.read(self.__fd, bytes) end
 function File:write(data) return posix.write(self.__fd, data) end
 

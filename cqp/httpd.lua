@@ -75,12 +75,12 @@ local function handle_connection(params, con)
 	con:close()
 end
 
-function M.new(loop, p)
+function M.new(p)
 	local srv = socket.listen(p.local_addr or "127.0.0.1", tonumber(p.port or 8000))
 	srv:onerror(function(sock, method, error, level) return error end)
-	loop:wrap(function()
+	cqueues.running():wrap(function()
 		for con in srv:clients() do
-			loop:wrap(function() handle_connection(p, con) end)
+			cqueues.running():wrap(function() handle_connection(p, con) end)
 		end
 	end)
 end

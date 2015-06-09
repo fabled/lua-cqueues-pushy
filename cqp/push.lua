@@ -1,6 +1,31 @@
--- Practically taken from:
--- https://raw.githubusercontent.com/sgraf812/push/
--- with coding style and minor updates by: Timo Teräs
+--[[
+Heavily based on https://github.com/sgraf812/push
+
+The MIT License (MIT)
+
+Copyright (c) 2013 Sebastian Graf
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+Coding style changes, along with additional updates and cqueues support
+Copyright (c) 2015 Timo Teräs
+--]]
 
 local cqueues = require 'cqueues'
 local condition = require 'cqueues.condition'
@@ -66,12 +91,12 @@ function P.action.on(trigger, action)
 	end
 end
 
-function P.action.threshold(loop, threshold_time, on_short, on_long)
+function P.action.threshold(threshold_time, on_short, on_long)
 	local cond = condition.new()
 	local property = P.property(false)
 
 	property:push_to(function() cond:signal() end)
-	loop:wrap(function()
+	cqueues.running():wrap(function()
 		while true do
 			if property() then
 				if cond:wait(threshold_time) then
@@ -156,7 +181,7 @@ function P.readonly(self)
 end
 
 function P.computed(reader, writer, name)
-	local p = property(nil, name or "<unnamed>")
+	local p = P.property(nil, name or "<unnamed>")
 	p.__froms = { }
 
 	local function update()

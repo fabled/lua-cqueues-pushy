@@ -1,8 +1,9 @@
+local cqueues = require 'cqueues'
 local signal = require 'cqueues.signal'
 local posix = require 'posix'
 local push = require 'cqp.push'
 
-local all_processes = {}
+local all_processes = nil
 
 -- Process object
 
@@ -35,12 +36,9 @@ function Process:kill(signo)
 	if pid then posix.kill(pid, signo or 15) end
 end
 
--- Manager object
+-- Module interface
 
-local Manager = {}
-Manager.__index = Manager
-
-function Manager:main()
+local function grim_reaper()
 	signal.block(signal.SIGCHLD)
 	local s = signal.listen(signal.SIGCHLD)
 	while true do
@@ -55,26 +53,34 @@ function Manager:main()
 				c.__pid = nil
 				all_processes[pid] = nil
 				c.running(false)
+				if c.respawn then
+					cqueues.running():wrap(function()
+						cqueues.poll(1.0)
+						c:run()
+					end)
+				end
 			end
 		end
 	end
 end
 
-function Manager:create(cmd, ...)
+local M = {}
+function M.create(opts)
+	if not all_processes then
+		all_processes = {}
+		cqueues.running():wrap(grim_reaper)
+	end
+
+	if type(opts) == "string" then
+		opts = { command = opts }
+	end
+
 	return setmetatable({
-		command = cmd,
-		arguments = table.pack(...),
+		command = opts.command,
+		arguments = opts.arguments or {},
+		respawn = opts.respawn or false,
 		running = push.property(false, "Child running")
 	}, Process)
-end
-
--- Module interface
-
-local M = {}
-function M.manager(loop)
-	local mgr = setmetatable({}, Manager)
-	loop:wrap(function() mgr:main(loop) end)
-	return mgr
 end
 
 return M
