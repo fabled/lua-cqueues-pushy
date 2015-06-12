@@ -65,14 +65,14 @@ local function grim_reaper()
 end
 
 local M = {}
-function M.create(opts)
+function M.create(opts, ...)
 	if not all_processes then
 		all_processes = {}
 		cqueues.running():wrap(grim_reaper)
 	end
 
 	if type(opts) == "string" then
-		opts = { command = opts }
+		opts = { command = opts, arguments = { ... } }
 	end
 
 	return setmetatable({
