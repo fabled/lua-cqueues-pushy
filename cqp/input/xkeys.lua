@@ -219,7 +219,7 @@ function XKeysManager:map_xkeys(devname, sysfsinfo, devinfo)
 	self.__phys[phys] = xkeys
 	xkeys.__users = xkeys.__users + 1
 
-	self.__loop:wrap(function()
+	cq.running():wrap(function()
 		local fd = pfd.open(("/dev/%s"):format(devname), "rw")
 		local method = (physinput == "input0" and devinfo.main or XKeys.main_extra)
 		method(xkeys, fd, devinfo)
@@ -259,7 +259,7 @@ end
 
 function XKeysManager:new()
 	local o = setmetatable({}, XKeys)
-	o:init(self.__loop)
+	o:init()
 	table.insert(self.__units, o)
 	return o
 end
@@ -270,9 +270,17 @@ local M = {
 	Led = { Off = false, On = true, Blink = 2 },
 }
 function M.manager(loop)
-	local mgr = setmetatable({ __loop = loop, __units = {}, __phys = {} }, XKeysManager)
-	loop:wrap(function() mgr:main() end)
-	return mgr
+	if not M.__manager then
+		loop = loop or cq.running()
+		local mgr = setmetatable({ __units = {}, __phys = {} }, XKeysManager)
+		loop:wrap(function() mgr:main() end)
+		M.__manager = mgr
+	end
+	return M.__manager
+end
+
+function M.new()
+	return M.manager():new()
 end
 
 return M
