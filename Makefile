@@ -2,7 +2,7 @@ LUA = lua5.2
 
 ALL_LUA := $(wildcard cqp/*.lua cqp/*/*.lua)
 
-all: cqp/protocol/modem.so
+all: cqp/protocol/modem.so cqp/protocol/i2c.so
 
 %.so: %.c
 	gcc $(CFLAGS) -fPIC $(shell pkg-config --cflags $(LUA)) -shared $< -o $@ $(shell pkg-config --libs $(LUA))

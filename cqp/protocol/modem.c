@@ -65,7 +65,7 @@ static void setuint(lua_State *L, const char *key, unsigned value)
 
 #define defineuint(x) setuint(L, #x, x)
 
-LUALIB_API int luaopen_tvsc_protocol_modem(lua_State *L)
+LUALIB_API int luaopen_cqp_protocol_modem(lua_State *L)
 {
 	lua_newtable(L);
 	luaL_setfuncs(L, R, 0);
