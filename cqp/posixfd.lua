@@ -34,6 +34,7 @@ local modemap = {
 	["rw"] = posix.O_RDWR + posix.O_NONBLOCK,
 	["r"]  = posix.O_RDONLY + posix.O_NONBLOCK,
 	["w"]  = posix.O_WRONLY + posix.O_NONBLOCK,
+	["p"]  = posix.O_RDONLY + posix.O_NONBLOCK,
 }
 
 function M.open(filename, mode)
