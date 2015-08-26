@@ -10,6 +10,18 @@ local errno = require"cqueues.errno"
 
 local M = {}
 
+local function parseurl(s)
+	local uri, args = s:match('^([^?]+)%??(.*)')
+	local ans = {}
+	if args then
+		for k,v in args:gmatch('([^&=?]-)=([^&=?]+)' ) do
+			ans[k] = v:gsub('+', ' ')
+				  :gsub('%%(%x%x)', function(h) return string.char(tonumber(h, 16)) end)
+		end
+	end
+	return uri, ans
+end
+
 local function handle_connection(params, con)
 	local _, ip, port = con:peername()
 
@@ -41,19 +53,22 @@ local function handle_connection(params, con)
 		body = con:read(tonumber(hdr["Content-Length"]))
 	end
 
-	if params.uri[path] then
-		local args = {}
-		if method == "POST" and body then
-			for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
-				args[key] = val
-			end
+	local args = {}
+	if method == "POST" and body then
+		for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
+			args[key] = val
 		end
+	elseif method == "GET" then
+		path, args = parseurl(path)
+	end
 
-		local code, text, hdrs = params.uri[path](hdr, args)
+	if params.uri[path] then
+		local code, text, hdrs, data = params.uri[path](hdr, args)
 		con:write(("HTTP/1.1 %d %s\n"):format(code, text))
 		print(code, text, hdrs)
 		if hdrs then con:write(table.concat(hdrs, "\n"), "\n") end
 		con:write("Connection: close\n\n")
+		if data then con:write(data) end
 	else
 		con:write("HTTP/1.1 404 Not Found\n")
 		con:write("Connection: close\n\n")
