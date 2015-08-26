@@ -58,7 +58,7 @@ local function grim_reaper()
 				c.__pid = nil
 				c.__status = exit_status
 				all_processes[pid] = nil
-				if c.runnning then
+				if c.running then
 					c.running(false)
 				end
 				if c.cond then
