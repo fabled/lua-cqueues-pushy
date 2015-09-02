@@ -9,8 +9,11 @@ all: $(ALL_SO)
 	gcc $(CFLAGS) -fPIC $(shell pkg-config --cflags $(LUA)) -shared $< -o $@ $(shell pkg-config --libs $(LUA))
 
 install: all
-	for f in $(ALL_LUA) $(ALL_SO); do \
+	for f in $(ALL_LUA); do \
 		install -D -m644 $$f $(DESTDIR)/usr/share/lua/5.2/$$f ; \
+	done
+	for f in $(ALL_SO); do \
+		install -D -m644 $$f $(DESTDIR)/usr/lib/lua/5.2/$$f ; \
 	done
 
 clean:
