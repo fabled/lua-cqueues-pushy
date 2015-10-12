@@ -30,7 +30,7 @@ local function handle_connection(params, con)
 
 	local req, why = con:read("*l")
 	if not req then
-		print(("%s:%d: no request (%s)"):format(ip, port, errno.strerror(why)))
+		print(("%s:%d: no request (%s)"):format(ip, port, why and errno.strerror(why) or "timeout"))
 		return
 	end
 
