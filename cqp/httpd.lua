@@ -7,19 +7,20 @@
 local cqueues = require"cqueues"
 local socket = require"cqueues.socket"
 local errno = require"cqueues.errno"
+local url = require"socket.url"
 
 local M = {}
 
-local function parseurl(s)
-	local uri, args = s:match('^([^?]+)%??(.*)')
-	local ans = {}
-	if args then
-		for k,v in args:gmatch('([^&=?]-)=([^&=?]+)' ) do
-			ans[k] = v:gsub('+', ' ')
-				  :gsub('%%(%x%x)', function(h) return string.char(tonumber(h, 16)) end)
+local function parseurl(u)
+	local u = url.parse(u)
+	local s = url.parse_path(u.path)
+	local args = {}
+	if s.query then
+		for k,v in s.query:gmatch('([^&=?]-)=([^&=?]+)' ) do
+			args[k] = url.unescape(v)
 		end
 	end
-	return uri, ans
+	return s, args
 end
 
 local function handle_connection(params, con)
@@ -53,17 +54,23 @@ local function handle_connection(params, con)
 		body = con:read(tonumber(hdr["Content-Length"]))
 	end
 
-	local args = {}
+	local paths, args = parseurl(path)
 	if method == "POST" and body then
 		for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
 			args[key] = val
 		end
-	elseif method == "GET" then
-		path, args = parseurl(path)
 	end
 
-	if params.uri[path] then
-		local code, text, hdrs, data = params.uri[path](hdr, args)
+	local uri = params.uri
+	for _, p in ipairs(paths) do
+		if type(uri) ~= "table" then break end
+		local node = uri[p]
+		if node == nil then break end
+		uri = node
+	end
+
+	if type(uri) == "function" then
+		local code, text, hdrs, data = uri(hdr, args, paths)
 		con:write(("HTTP/1.1 %d %s\n"):format(code, text))
 		print(code, text, hdrs)
 		if hdrs then con:write(table.concat(hdrs, "\n"), "\n") end
