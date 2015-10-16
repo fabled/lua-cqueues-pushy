@@ -23,6 +23,21 @@ local function spawn(...)
 	return pid
 end
 
+-- Async Process object
+
+local Async = {}
+Async.__index = Async
+
+function Async:kill(signo)
+	local pid = self.__pid
+	if pid then posix.kill(pid, signo or 15) end
+end
+
+function Async:wait()
+	self.__cond:wait()
+	return self.__status
+end
+
 -- Process object
 
 local Process = { }
@@ -61,8 +76,8 @@ local function grim_reaper()
 				if c.running then
 					c.running(false)
 				end
-				if c.cond then
-					c.cond:signal()
+				if c.__cond then
+					c.__cond:signal()
 				end
 				if c.respawn then
 					cqueues.running():wrap(function()
@@ -96,15 +111,18 @@ function M.create(opts, ...)
 	}, Process)
 end
 
-function M.exec(...)
+function M.spawn(...)
 	M.init()
-	local obj = {
-		cond = condition.new()
-	}
-	local pid = spawn(...)
-	all_processes[pid] = obj
-	obj.cond:wait()
-	return obj.__status
+	local obj = setmetatable({
+		__cond = condition.new(),
+		__pid = spawn(...),
+	}, Async)
+	all_processes[obj.__pid] = obj
+	return obj
+end
+
+function M.run(...)
+	return M.spawn(...):wait()
 end
 
 return M
