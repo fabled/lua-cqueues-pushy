@@ -22,7 +22,8 @@ function XKeys:init()
 	self.joystick = {
 		x = push.property(0, "XKeys X-axis"),
 		y = push.property(0, "XKeys Y-axis"),
-		z = push.property(0, "XKeys Z-axis"),
+		z = push.property(0, "XKeys Z-axis relative"),
+		z_abs = push.property(0, "XKeys Z-axis absolute"),
 	}
 	self.program_key = push.property(false, "XKeys Program Key")
 	self.green_led = push.property(true, "XKeys Green Led")
@@ -64,6 +65,7 @@ function XKeys:reset_state()
 	self.joystick.x(0)
 	self.joystick.y(0)
 	self.joystick.z(0)
+	self.joystick.z_abs(0)
 	self.program_key(false)
 	for _, key in pairs(self.__keys) do key.state(false) end
 	self.__led_green = nil
@@ -128,6 +130,7 @@ function XKeys:main_xk(fd, devinfo)
 				self.joystick.x( x / 128.0)
 				self.joystick.y(-y / 128.0)
 				self.joystick.z(diff_z)
+				self.joystick.z_abs((z - 128.0) / 128.0)
 			end
 
 		end
