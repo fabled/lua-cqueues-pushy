@@ -11,6 +11,35 @@ local url = require"socket.url"
 
 local M = {}
 
+local http_errors = {
+	[100] = "Continue",
+	[200] = "OK",
+	[201] = "Created",
+	[202] = "Accepted",
+	[203] = "Non-Authoritative Information",
+	[204] = "No Content",
+	[205] = "Reset Content",
+	[300] = "Multiple Choices",
+	[301] = "Moved Permanently",
+	[302] = "Found",
+	[303] = "See Other",
+	[304] = "Not Modified",
+	[307] = "Temporary Redirect",
+	[308] = "Permanent Redirect",
+	[400] = "Bad Request",
+	[401] = "Unauthorized",
+	[403] = "Forbidden",
+	[404] = "Not Found",
+	[405] = "Method Not Allowed",
+	[406] = "Not Acceptable",
+	[408] = "Request Timeout",
+	[409] = "Conflict",
+	[500] = "Internal Server Error",
+	[501] = "Not Implemented",
+	[505] = "HTTP Version Not Supported",
+	[520] = "Unknown Error",
+}
+
 local function parseurl(u)
 	local u = url.parse(u)
 	local s = url.parse_path(u.path)
@@ -21,6 +50,29 @@ local function parseurl(u)
 		end
 	end
 	return s, args
+end
+
+local function route_request(ctx, reply, uri, no_method)
+	if no_method == nil then
+		uri = uri[ctx.method]
+		if uri == nil then return 405 end
+	end
+
+	local paths = ctx.paths
+	for i = ctx.path_pos, #paths do
+		local p = paths[i]
+		if type(uri) ~= "table" then break end
+		local node = uri[p]
+		if node == nil then break end
+		uri = node
+		ctx.path_pos = i + 1
+	end
+
+	if type(uri) == "function" then
+		return uri(ctx, reply)
+	end
+
+	return uri and 500 or 404
 end
 
 local function handle_connection(params, con)
@@ -55,32 +107,41 @@ local function handle_connection(params, con)
 	end
 
 	local paths, args = parseurl(path)
-	if method == "POST" and body then
+	if method == "POST" and body and hdr["Content-Type"] == "application/x-www-form-urlencoded" then
 		for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
 			args[key] = val
 		end
 	end
 
-	local uri = params.uri
-	for _, p in ipairs(paths) do
-		if type(uri) ~= "table" then break end
-		local node = uri[p]
-		if node == nil then break end
-		uri = node
-	end
+	local ctx = {
+		ip = ip,
+		port = port,
+		method = method,
+		path = path,
+		paths = paths,
+		headers = hdr,
+		body = body,
+		args = args,
+		route = route_request,
+		path_pos = 1,
+	}
+	local reply = {
+		headers = {},
+	}
 
-	if type(uri) == "function" then
-		local code, text, hdrs, data = uri(hdr, args, paths)
-		con:write(("HTTP/1.1 %d %s\n"):format(code, text))
-		print(code, text, hdrs)
-		if hdrs then con:write(table.concat(hdrs, "\n"), "\n") end
-		con:write("Connection: close\n\n")
-		if data then con:write(data) end
-	else
-		con:write("HTTP/1.1 404 Not Found\n")
-		con:write("Connection: close\n\n")
+	local code, body = ctx:route(reply, params.uri, true)
+	code = code or 500
+	con:write(("HTTP/1.1 %d %s\n"):format(code, reply.status_text or http_errors[code]))
+	print(code, text)
+	hdrs = reply.headers
+	if hdrs then
+		hdrs["Connection"] = "close"
+		for hdr, val in pairs(hdrs) do
+			con:write(hdr, ": ", val, "\n")
+		end
 	end
-
+	con:write("\n")
+	if body then con:write(body) end
 	con:flush()
 	con:shutdown("w")
 	con:read(1)
