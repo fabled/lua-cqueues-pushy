@@ -2,21 +2,22 @@ local cqueues = require 'cqueues'
 local condition = require 'cqueues.condition'
 local signal = require 'cqueues.signal'
 local posix = require 'posix'
+local posixfd = require 'cqp.posixfd'
 local push = require 'cqp.push'
 
 local all_processes = nil
+local nulfd = posix.open("/dev/null", posix.O_RDWR)
 
-local function spawn(...)
+local function spawn(info, ...)
 	local pid = posix.fork()
 	print(pid, "Fork", ...)
 	if pid == -1 then
 		return error("Fork failed")
 	elseif pid == 0 then
-		local nulfd = posix.open("/dev/null", posix.O_RDWR)
-		posix.dup2(nulfd, 0)
-		posix.dup2(nulfd, 1)
-		posix.dup2(nulfd, 2)
-		posix.close(nulfd)
+		info = info or {}
+		posix.dup2(info.stdin or nulfd, 0)
+		posix.dup2(info.stdout or nulfd, 1)
+		posix.dup2(info.stderr or nulfd, 2)
 		posix.execp(...)
 		os.exit(0)
 	end
@@ -45,7 +46,7 @@ Process.__index = Process
 
 function Process:run()
 	if self.running() then return end
-	local pid = spawn(self.command, table.unpack(self.arguments))
+	local pid = spawn(nil, self.command, table.unpack(self.arguments))
 	all_processes[pid] = self
 	self.running(true)
 	self.__pid = pid
@@ -115,14 +116,28 @@ function M.spawn(...)
 	M.init()
 	local obj = setmetatable({
 		__cond = condition.new(),
-		__pid = spawn(...),
+		__pid = spawn(nil, ...),
 	}, Async)
 	all_processes[obj.__pid] = obj
 	return obj
 end
 
+function M.popen(...)
+	M.init()
+	local rfd, wfd = posix.pipe()
+	posix.fcntl(rfd, posix.F_SETFD, posix.FD_CLOEXEC)
+	posix.fcntl(rfd, posix.F_SETFL, posix.O_NONBLOCK)
+	local obj = setmetatable({
+		__cond = condition.new(),
+		__pid = spawn({stdout=wfd}, ...),
+	}, Async)
+	posix.close(wfd)
+	all_processes[obj.__pid] = obj
+	return posixfd.openfd(rfd, "r")
+end
+
 function M.run(...)
-	return M.spawn(...):wait()
+	return M.spawn(nil, ...):wait()
 end
 
 return M

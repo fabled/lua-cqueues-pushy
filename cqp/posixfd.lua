@@ -12,6 +12,23 @@ function File:seek(offs)  return posix.lseek(self.__fd, offs, posix.SEEK_SET) en
 function File:read(bytes) return posix.read(self.__fd, bytes) end
 function File:write(data) return posix.write(self.__fd, data) end
 
+function File:read_all()
+	local all = {}
+	while true do
+		local data, errmsg, errnum  = posix.read(self.__fd, 8*1024)
+		if data == nil then
+			if errnum ~= posix.EAGAIN then
+				return data, errmsg, errnum
+			end
+			cq.poll(self)
+		else
+			if #data == 0 then break end
+			table.insert(all, data)
+		end
+	end
+	return table.concat(all)
+end
+
 function File:close()
 	if not self.__fd then return end
 	cq.cancel(self.__fd)
