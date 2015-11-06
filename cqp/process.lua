@@ -137,7 +137,7 @@ function M.popen(...)
 end
 
 function M.run(...)
-	return M.spawn(nil, ...):wait()
+	return M.spawn(...):wait()
 end
 
 return M
