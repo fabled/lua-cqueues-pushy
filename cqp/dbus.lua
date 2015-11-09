@@ -3,20 +3,44 @@ local cqueues = require 'cqueues'
 local condition = require 'cqueues.condition'
 
 local M = {}
-local BUS = {}
-BUS.__index = BUS
-local PROXY = {}
-PROXY.__index = PROXY
 
-function PROXY:request(interface, method, timeout)
+local Proxy = {}
+Proxy.__index = Proxy
+
+function Proxy:request(interface, method, timeout)
 	return self.bus:request(self.service, self.path, interface, method, timeout or self.timeout)
 end
 
-function BUS:get_proxy(service, path, timeout)
-	return setmetatable({bus=self,service=service,path=path,timeout=timeout}, PROXY)
+local Object = {}
+function Object.__index(self, key)
+	local dapi = self.annotation[key]
+	if dapi == nil then return nil end
+	return function(self, ...)
+		return self.bus:request{
+			service = self.service,
+			path = self.path,
+			interface = dapi.interface,
+			method = dapi.method or key,
+			timeout = dapi.timeout or self.timeout,
+			arg_string = dapi.args,
+			ret_string = dapi.returns,
+			arguments = table.pack(...),
+		}
+	end
 end
 
-function BUS:request(service, path, interface, method, timeout)
+local Bus = {}
+Bus.__index = Bus
+
+function Bus:get_proxy(service, path, timeout)
+	return setmetatable({bus=self,service=service,path=path,timeout=timeout}, Proxy)
+end
+
+function Bus:get_object(service, path, annotation)
+	return setmetatable({bus=self,service=service,path=path,annotation=annotation}, Object)
+end
+
+function Bus:request(service, path, interface, method, timeout)
 	local args
 	if type(service) ~= "table" then
 		args = {
@@ -30,10 +54,17 @@ function BUS:request(service, path, interface, method, timeout)
 		args = service
 	end
 
-	collectgarbage()
-
 	local msg = ldbus.message.new_method_call(args.service, args.path, args.interface, args.method)
 	if msg == nil then return nil, "Out of memory" end
+
+	if args.arg_string then
+		if not args.arg_string then return nil, "Argument signature specified, but no method arguments" end
+		local iter = ldbus.message.iter.new()
+		msg:iter_init_append(iter)
+		for i=1, #args.arg_string do
+			iter:append_basic(args.arguments[i], args.arg_string:sub(i, i))
+		end
+	end
 
 	local event = condition.new()
 	local pending = self.__bus:send_with_reply(msg, args.timeout or 1.0)
@@ -142,7 +173,7 @@ function M.get_bus(bus_name)
 	bus:set_timeout_functions(obj.timeout_add, obj.timeout_del, obj.timeout_mod)
 	bus:set_watch_functions(obj.watch_add, obj.watch_del, obj.watch_mod)
 
-	return setmetatable(obj, BUS)
+	return setmetatable(obj, Bus)
 end
 
 return M
