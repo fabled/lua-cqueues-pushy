@@ -8,6 +8,7 @@ local cqueues = require"cqueues"
 local socket = require"cqueues.socket"
 local errno = require"cqueues.errno"
 local url = require"socket.url"
+local plstringx = require"pl.stringx"
 
 local M = {}
 
@@ -81,68 +82,91 @@ local function handle_connection(params, con)
 	con:setmode("tl", "tf")
 	con:onerror(function(sock, method, error, level) return error end)
 
-	local req, why = con:read("*l")
-	if not req then
-		print(("%s:%d: no request (%s)"):format(ip, port, why and errno.strerror(why) or "timeout"))
-		return
-	end
-
-	local hdr = {}
-	for h in con:lines("*h") do
-		local f, b = h:match("^([^:%s]+)%s*:%s*(.*)$")
-		hdr[f] = b
-	end
-
-	con:read("*l") -- discard header/body break
-	local method, path = req:match("^(%w+)%s+/?([^%s]+)")
-	print(("%s:%d: method: %s, path: %s"):format(ip, port, method, path))
-	if not path then
-		print(("%s:%d: no path specified"):format(ip, port))
-		return
-	end
-
-	local body = nil
-	if hdr["Content-Length"] then
-		body = con:read(tonumber(hdr["Content-Length"]))
-	end
-
-	local paths, args = parseurl(path)
-	if method == "POST" and body and hdr["Content-Type"] == "application/x-www-form-urlencoded" then
-		for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
-			args[key] = val
+	repeat
+		con:settimeout(5.0)
+		local req, why = con:read("*l")
+		if not req then
+			print(("%s:%d: no request (%s)"):format(ip, port, why and errno.strerror(why) or "client closed connection"))
+			return
 		end
-	end
+		print("HTTP", req)
 
-	local ctx = {
-		ip = ip,
-		port = port,
-		method = method,
-		path = path,
-		paths = paths,
-		headers = hdr,
-		body = body,
-		args = args,
-		route = route_request,
-		path_pos = 1,
-	}
-	local reply = {
-		headers = {},
-	}
+		local method, path, version = req:match("^(%w+)%s+/?([^%s]+) HTTP/([%d.]+)")
+		version = tonumber(version)
+		if not path or not version then
+			print(("%s:%d: no path/version specified"):format(ip, port))
+			con:close()
+			return
+		end
+		print(("%s:%d: HTTP/%d, %s %s"):format(ip, port, version, method, path))
 
-	local code, body = ctx:route(reply, params.uri, true)
-	code = code or 500
-	con:write(("HTTP/1.1 %d %s\n"):format(code, reply.status_text or http_errors[code]))
-	print(code, text)
-	hdrs = reply.headers
-	if hdrs then
-		hdrs["Connection"] = "close"
-		for hdr, val in pairs(hdrs) do
+		con:settimeout(15.0)
+		local hdr = {}
+		for h in con:lines("*h") do
+			local f, b = h:match("^([^:%s]+)%s*:%s*(.*)$")
+			hdr[f] = b
+		end
+		con:read("*l") -- discard header/body break
+
+		local keep_alive = version >= 1.1
+		for _, option in ipairs(plstringx.split(hdr["Connection"] or "", "[ .]+")) do
+			if option == "keep-alive" then keep_alive = true
+			elseif option == "close" then keep_alive = false end
+		end
+
+		local body = nil
+		if hdr["Content-Length"] then
+			body = con:read(tonumber(hdr["Content-Length"]))
+		end
+
+		local paths, args = parseurl(path)
+		if method == "POST" and body and
+		   hdr["Content-Type"] == "application/x-www-form-urlencoded" then
+			for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
+				args[key] = val
+			end
+		end
+
+		local code, body, reply = nil, nil, { headers = {} }
+		if version >= 0.9 and version < 2.0 then
+			local ctx = {
+				http_version = version,
+				ip = ip,
+				port = port,
+				method = method,
+				path = path,
+				paths = paths,
+				headers = hdr,
+				body = body,
+				args = args,
+				route = route_request,
+				path_pos = 1,
+			}
+			code, body = ctx:route(reply, params.uri, true)
+		else
+			code = 505
+		end
+
+		code = code or 500
+		if (code >= 100 and code <= 199) or code == 204 or code == 304 then body = nil
+		else body = body or "" end
+		con:write(("HTTP/1.1 %d %s\n"):format(code, reply.status_text or http_errors[code]))
+		print(code, text)
+
+		local rhdrs = reply.headers
+		if version == 1.0 and keep_alive then rhdrs.Connection = "keep-alive"
+		elseif version > 1.0 and not keep_alive then rhdrs.Connection = "close"
+		else rhdrs.Connection = nil end
+		rhdrs["Content-Length"] = tostring(body and #body or 0)
+		for hdr, val in pairs(rhdrs) do
 			con:write(hdr, ": ", val, "\n")
 		end
-	end
-	con:write("\n")
-	if body then con:write(body) end
-	con:flush()
+		con:write("\n")
+
+		if body and method ~= "HEAD" then con:write(body) end
+		con:flush()
+	until not keep_alive
+
 	con:shutdown("w")
 	con:read(1)
 	print(("%s:%d: disconnected"):format(ip, port))
