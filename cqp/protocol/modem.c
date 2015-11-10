@@ -17,7 +17,7 @@ static int pusherror(lua_State *L, const char *info)
 
 static int PTIOCMGET(lua_State *L)
 {
-	int fd = luaL_checkint(L, 1);
+	int fd = luaL_checkinteger(L, 1);
 	unsigned int mflags;
 	if (ioctl(fd, TIOCMGET, &mflags) < 0) return pusherror(L, "TIOCMGET");
 	lua_pushinteger(L, mflags);
@@ -26,8 +26,8 @@ static int PTIOCMGET(lua_State *L)
 
 static int PTIOCMBIS(lua_State *L)
 {
-	int fd = luaL_checkint(L, 1);
-	unsigned int mflags = luaL_checkint(L, 2);
+	lua_Integer fd = luaL_checkinteger(L, 1);
+	unsigned int mflags = luaL_checkinteger(L, 2);
 	if (ioctl(fd, TIOCMBIS, &mflags) < 0) return pusherror(L, "TIOCMBIS");
 	lua_pushinteger(L, mflags);
 	return 0;
@@ -35,16 +35,16 @@ static int PTIOCMBIS(lua_State *L)
 
 static int PTIOCMBIC(lua_State *L)
 {
-	int fd = luaL_checkint(L, 1);
-	unsigned int mflags = luaL_checkint(L, 2);
+	int fd = luaL_checkinteger(L, 1);
+	unsigned int mflags = luaL_checkinteger(L, 2);
 	if (ioctl(fd, TIOCMBIC, &mflags) < 0) return pusherror(L, "TIOCMBIC");
 	return 0;
 }
 
 static int PTIOCMSET(lua_State *L)
 {
-	int fd = luaL_checkint(L, 1);
-	unsigned int mflags = luaL_checkint(L, 2);
+	int fd = luaL_checkinteger(L, 1);
+	unsigned int mflags = luaL_checkinteger(L, 2);
 	if (ioctl(fd, TIOCMSET, &mflags) < 0) return pusherror(L, "TIOCMSET");
 	return 0;
 }

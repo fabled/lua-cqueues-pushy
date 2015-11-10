@@ -18,8 +18,8 @@ static int pusherror(lua_State *L, const char *info)
 
 static int PI2C_SLAVE(lua_State *L)
 {
-	int fd = luaL_checkint(L, 1);
-	int addr = luaL_checkint(L, 2);
+	int fd = luaL_checkinteger(L, 1);
+	int addr = luaL_checkinteger(L, 2);
 	if (ioctl(fd, I2C_SLAVE, addr) < 0) return pusherror(L, "I2C_SLAVE");
 	return 1;
 }
