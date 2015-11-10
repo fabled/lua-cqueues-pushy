@@ -86,7 +86,7 @@ function Bus:request(service, path, interface, method, timeout)
 			table.insert(msg, iter:get_basic())
 		until not iter:next()
 	end
-	print("Result", method, table.unpack(msg))
+	--print("Result", method, table.unpack(msg))
 	return table.unpack(msg)
 end
 

@@ -89,7 +89,6 @@ local function handle_connection(params, con)
 			print(("%s:%d: no request (%s)"):format(ip, port, why and errno.strerror(why) or "client closed connection"))
 			return
 		end
-		print("HTTP", req)
 
 		local method, path, version = req:match("^(%w+)%s+/?([^%s]+) HTTP/([%d.]+)")
 		version = tonumber(version)
@@ -98,7 +97,6 @@ local function handle_connection(params, con)
 			con:close()
 			return
 		end
-		print(("%s:%d: HTTP/%d, %s %s"):format(ip, port, version, method, path))
 
 		con:settimeout(15.0)
 		local hdr = {}
@@ -150,14 +148,16 @@ local function handle_connection(params, con)
 		code = code or 500
 		if (code >= 100 and code <= 199) or code == 204 or code == 304 then body = nil
 		else body = body or "" end
-		con:write(("HTTP/1.1 %d %s\n"):format(code, reply.status_text or http_errors[code]))
-		print(code, text)
 
+		print(("%s:%d: %s %s: %3d (%d bytes)"):format(ip, port, method, path, code, body and #body or 0))
+
+		con:write(("HTTP/1.1 %d %s\n"):format(code, reply.status_text or http_errors[code]))
 		local rhdrs = reply.headers
 		if version == 1.0 and keep_alive then rhdrs.Connection = "keep-alive"
 		elseif version > 1.0 and not keep_alive then rhdrs.Connection = "close"
 		else rhdrs.Connection = nil end
-		rhdrs["Content-Length"] = tostring(body and #body or 0)
+		if body then rhdrs["Content-Length"] = tostring(#body) end
+
 		for hdr, val in pairs(rhdrs) do
 			con:write(hdr, ": ", val, "\n")
 		end
