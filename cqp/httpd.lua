@@ -124,7 +124,7 @@ local function handle_connection(params, con)
 			end
 		end
 
-		local code, body, reply = nil, nil, { headers = {} }
+		local code, reply = nil, { headers = {} }
 		if version >= 0.9 and version < 2.0 then
 			local ctx = {
 				http_version = version,
