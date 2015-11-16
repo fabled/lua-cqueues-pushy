@@ -87,15 +87,14 @@ local function handle_connection(params, con)
 		local req, why = con:read("*l")
 		if not req then
 			print(("%s:%d: no request (%s)"):format(ip, port, why and errno.strerror(why) or "client closed connection"))
-			return
+			break
 		end
 
 		local method, path, version = req:match("^(%w+)%s+/?([^%s]+) HTTP/([%d.]+)")
 		version = tonumber(version)
 		if not path or not version then
 			print(("%s:%d: no path/version specified"):format(ip, port))
-			con:close()
-			return
+			break
 		end
 
 		con:settimeout(15.0)
