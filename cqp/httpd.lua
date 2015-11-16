@@ -141,7 +141,7 @@ local function handle_connection(params, con)
 			}
 			code, body = ctx:route(reply, params.uri, true)
 		else
-			code = 505
+			code, body = 505, nil
 		end
 
 		code = code or 500
