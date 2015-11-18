@@ -136,6 +136,20 @@ function M.popen(...)
 	return posixfd.openfd(rfd, "r")
 end
 
+function M.popenw(...)
+	M.init()
+	local rfd, wfd = posix.pipe()
+	posix.fcntl(rfd, posix.F_SETFD, posix.FD_CLOEXEC)
+	posix.fcntl(rfd, posix.F_SETFL, posix.O_NONBLOCK)
+	local obj = setmetatable({
+		__cond = condition.new(),
+		__pid = spawn({stdin=rfd}, ...),
+	}, Async)
+	posix.close(rfd)
+	all_processes[obj.__pid] = obj
+	return posixfd.openfd(wfd, "w")
+end
+
 function M.run(...)
 	return M.spawn(...):wait()
 end
