@@ -154,4 +154,10 @@ function M.run(...)
 	return M.spawn(...):wait()
 end
 
+function M.killall(signo)
+	for pid, obj in pairs(all_processes) do
+		posix.kill(pid, signo or 15)
+	end
+end
+
 return M
