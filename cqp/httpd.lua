@@ -9,6 +9,7 @@ local socket = require"cqueues.socket"
 local errno = require"cqueues.errno"
 local url = require"socket.url"
 local plstringx = require"pl.stringx"
+local json = require"cjson.safe"
 
 local M = {}
 
@@ -119,10 +120,15 @@ local function handle_connection(params, con)
 		end
 
 		local paths, args = parseurl(path)
-		if method == "POST" and body and
-		   hdr["Content-Type"] == "application/x-www-form-urlencoded" then
-			for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
-				args[key] = val
+		if body then
+			local content_type = hdr["Content-Type"]
+			if content_type == "application/x-www-form-urlencoded" then
+				for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
+					args[key] = val
+				end
+			elseif content_type == "application/json"
+			    or content_type == "application/json;charset=utf-8" then
+				args = json.decode(body)
 			end
 		end
 
@@ -150,10 +156,19 @@ local function handle_connection(params, con)
 		if (code >= 100 and code <= 199) or code == 204 or code == 304 then body = nil
 		else body = body or "" end
 
+		local rhdrs = reply.headers
+		if type(body) == "table" then
+			body = json.encode(body)
+			if body then
+				rhdrs["Content-Type"] = "application/json"
+			else
+				code, body = 500, ""
+			end
+		end
+
 		print(("%s:%d: %s %s: %3d (%d bytes)"):format(ip, port, method, path, code, body and #body or 0))
 
 		con:write(("HTTP/1.1 %d %s\n"):format(code, reply.status_text or http_errors[code]))
-		local rhdrs = reply.headers
 		if version == 1.0 and keep_alive then rhdrs.Connection = "keep-alive"
 		elseif version > 1.0 and not keep_alive then rhdrs.Connection = "close"
 		else rhdrs.Connection = nil end
