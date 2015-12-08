@@ -186,7 +186,6 @@ local function handle_connection(params, con)
 	con:shutdown("w")
 	con:read(1)
 	print(("%s:%d: disconnected"):format(ip, port))
-	con:close()
 end
 
 function M.new(p)
@@ -194,7 +193,11 @@ function M.new(p)
 	srv:onerror(function(sock, method, error, level) return error end)
 	cqueues.running():wrap(function()
 		for con in srv:clients() do
-			cqueues.running():wrap(function() handle_connection(p, con) end)
+			cqueues.running():wrap(function()
+				local ok, err = pcall(handle_connection, p, con)
+				if not ok then print(err) end
+				con:close()
+			end)
 		end
 	end)
 end
