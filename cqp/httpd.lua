@@ -121,13 +121,12 @@ local function handle_connection(params, con)
 
 		local paths, args = parseurl(path)
 		if body then
-			local content_type = hdr["Content-Type"]
+			local content_type = (hdr["Content-Type"] or ""):match("^([^;]+)")
 			if content_type == "application/x-www-form-urlencoded" then
 				for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
 					args[key] = val
 				end
-			elseif content_type == "application/json"
-			    or content_type == "application/json;charset=utf-8" then
+			elseif content_type == "application/json" then
 				args = json.decode(body)
 			end
 		end
