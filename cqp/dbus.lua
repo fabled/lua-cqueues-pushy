@@ -16,6 +16,19 @@ function Object.__index(self, key)
 	local dapi = self.annotation[key]
 	if dapi == nil then return nil end
 	return function(self, ...)
+		if dapi.property then
+			return self.bus:request{
+				service = self.service,
+				path = self.path,
+				interface = "org.freedesktop.DBus.Properties",
+				method = "Get",
+				timeout = dapi.timeout or self.timeout,
+				arg_string = "ss",
+				ret_string = dapi.datatype,
+				arguments = table.pack(dapi.interface, dapi.method or key),
+			}
+		end
+
 		return self.bus:request{
 			service = self.service,
 			path = self.path,
@@ -83,7 +96,14 @@ function Bus:request(service, path, interface, method, timeout)
 	local iter = reply:iter_init()
 	if iter then
 		repeat
-			table.insert(msg, iter:get_basic())
+			if iter:get_arg_type() == 'v' then
+				-- Quick hack to get single element
+				-- variants working
+				local sub = iter:recurse()
+				table.insert(msg, sub:get_basic())
+			else
+				table.insert(msg, iter:get_basic())
+			end
 		until not iter:next()
 	end
 	--print("Result", method, table.unpack(msg))
