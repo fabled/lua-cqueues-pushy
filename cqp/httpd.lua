@@ -48,8 +48,8 @@ local function parseurl(u)
 	local u = url.parse(u)
 	local s = url.parse_path(u.path)
 	local args = {}
-	if s.query then
-		for k,v in s.query:gmatch('([^&=?]-)=([^&=?]+)' ) do
+	if u.query then
+		for k,v in u.query:gmatch('([^&=?]-)=([^&=?]+)' ) do
 			args[k] = url.unescape(v)
 		end
 	end
