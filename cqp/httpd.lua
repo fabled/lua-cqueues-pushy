@@ -178,7 +178,7 @@ local function handle_connection(params, con)
 		end
 		con:write("\n")
 
-		if body and method ~= "HEAD" then con:write(body) end
+		if body and method ~= "HEAD" then con:xwrite(body, "bn") end
 		con:flush()
 	until not keep_alive
 
