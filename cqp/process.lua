@@ -139,8 +139,8 @@ end
 function M.popenw(...)
 	M.init()
 	local rfd, wfd = posix.pipe()
-	posix.fcntl(rfd, posix.F_SETFD, posix.FD_CLOEXEC)
-	posix.fcntl(rfd, posix.F_SETFL, posix.O_NONBLOCK)
+	posix.fcntl(wfd, posix.F_SETFD, posix.FD_CLOEXEC)
+	posix.fcntl(wfd, posix.F_SETFL, posix.O_NONBLOCK)
 	local obj = setmetatable({
 		__cond = condition.new(),
 		__pid = spawn({stdin=rfd}, ...),
