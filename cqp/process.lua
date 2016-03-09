@@ -18,6 +18,13 @@ local function spawn(info, ...)
 		posix.dup2(info.stdin or nulfd, 0)
 		posix.dup2(info.stdout or nulfd, 1)
 		posix.dup2(info.stderr or nulfd, 2)
+		if info.stdin then posix.close(info.stdin) end
+		if info.stdout then posix.close(info.stdout) end
+		if info.stderr then posix.close(info.stderr) end
+		posix.close(nulfd)
+		-- Unblock all signals, cqueues framework will block
+		-- many signals and that might cause issues with childs.
+		signal.unblock(signal.SIGKILL, signal.SIGTERM, signal.SIGHUP, signal.SIGCHLD)
 		posix.execp(...)
 		os.exit(0)
 	end
