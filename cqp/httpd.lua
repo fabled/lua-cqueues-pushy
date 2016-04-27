@@ -104,24 +104,24 @@ local function handle_connection(params, con)
 		local hdr = {}
 		for h in con:lines("*h") do
 			local f, b = h:match("^([^:%s]+)%s*:%s*(.*)$")
-			hdr[f] = b
+			hdr[f:lower()] = b
 		end
 		con:read("*l") -- discard header/body break
 
 		local keep_alive = version >= 1.1
-		for _, option in ipairs(plstringx.split(hdr["Connection"] or "", "[ .]+")) do
+		for _, option in ipairs(plstringx.split(hdr["connection"] or "", "[ .]+")) do
 			if option == "keep-alive" then keep_alive = true
 			elseif option == "close" then keep_alive = false end
 		end
 
 		local body = nil
-		if hdr["Content-Length"] then
-			body = con:read(tonumber(hdr["Content-Length"]))
+		if hdr["content-length"] then
+			body = con:read(tonumber(hdr["content-length"]))
 		end
 
 		local paths, args = parseurl(path)
 		if body then
-			local content_type = (hdr["Content-Type"] or ""):match("^([^;]+)")
+			local content_type = (hdr["content-type"] or ""):match("^([^;]+)")
 			if content_type == "application/x-www-form-urlencoded" then
 				for key, val in body:gmatch("([^&=]+)=?([^&]+)") do
 					args[key] = val
